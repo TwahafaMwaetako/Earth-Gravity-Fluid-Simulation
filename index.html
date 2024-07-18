@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth Gravity Fluid Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .control {
+            margin-bottom: 10px;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="controls">
+        <div class="control">
+            <label for="gravity">Gravity (m/s²):</label>
+            <input type="range" id="gravity" min="0" max="20" step="0.1" value="9.8">
+        </div>
+        <div class="control">
+            <label for="particles">Particles:</label>
+            <input type="range" id="particles" min="10" max="500" step="10" value="100">
+        </div>
+        <div class="control">
+            <label for="size">Particle Size (cm):</label>
+            <input type="range" id="size" min="1" max="20" step="0.5" value="5">
+        </div>
+        <div class="control">
+            <label for="bounce">Bounce Factor:</label>
+            <input type="range" id="bounce" min="0" max="1" step="0.01" value="0.8">
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Scale: 1 meter = 100 pixels
+        const SCALE = 100;
+        // Time step in seconds
+        const DT = 1 / 60;
+
+        let gravity = 9.8;
+        let particleCount = 100;
+        let particleSize = 5;
+        let bounceFactor = 0.8;
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = particleSize * SCALE / 100; // Convert cm to pixels
+                this.vx = (Math.random() * 2 - 1) * SCALE; // Initial velocity in pixels/second
+                this.vy = (Math.random() * 2 - 1) * SCALE;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'blue';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                // Update position
+                this.x += this.vx * DT;
+                this.y += this.vy * DT;
+
+                // Apply gravity
+                this.vy += gravity * SCALE * DT;
+
+                // Boundary collision
+                if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+                    this.vx *= -bounceFactor;
+                }
+                if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+                    this.vy *= -bounceFactor;
+                }
+
+                // Apply drag (air resistance)
+                const drag = 0.99;
+                this.vx *= drag;
+                this.vy *= drag;
+
+                // Keep particles within bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+            }
+        }
+
+        let particles = [];
+
+        function createParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
+            }
+        }
+
+        createParticles();
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Add particles on click
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            particles.push(new Particle(x, y));
+        });
+
+        // Control handlers
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            gravity = parseFloat(e.target.value);
+        });
+
+        document.getElementById('particles').addEventListener('input', (e) => {
+            particleCount = parseInt(e.target.value);
+            createParticles();
+        });
+
+        document.getElementById('size').addEventListener('input', (e) => {
+            particleSize = parseFloat(e.target.value);
+            particles.forEach(p => p.radius = particleSize * SCALE / 100);
+        });
+
+        document.getElementById('bounce').addEventListener('input', (e) => {
+            bounceFactor = parseFloat(e.target.value);
+        });
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
